@@ -24,3 +24,43 @@ func (q *Queries) GetRoom(ctx context.Context, id uuid.UUID) (Room, error) {
 	err := row.Scan(&i.ID, &i.Theme)
 	return i, err
 }
+
+const getRooms = `-- name: GetRooms :many
+SELECT
+    "id", "theme"
+    FROM rooms
+`
+
+func (q *Queries) GetRooms(ctx context.Context) ([]Room, error) {
+	rows, err := q.db.Query(ctx, getRooms)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Room
+	for rows.Next() {
+		var i Room
+		if err := rows.Scan(&i.ID, &i.Theme); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const insertRoom = `-- name: InsertRoom :one
+INSERT INTO rooms
+  ("theme") VALUES
+  ($1) 
+  RETURNING "id"
+`
+
+func (q *Queries) InsertRoom(ctx context.Context, theme string) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertRoom, theme)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
